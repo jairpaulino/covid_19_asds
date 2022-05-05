@@ -1,15 +1,17 @@
 getSVRParameters_GridSearch = function(train, valid, grid){
   # train=normTrain; valid=normValid
-  grid = list(lag = c(2, 5, 10, 15, 20)
-              , kernel = c("radial")
-              , gamma = c(1, 0.1, 0.01, 0.001)
-              , cost = c(0.1, 1, 100, 1000, 10000)
-              , epsilon = c(0.1, 0.01, 0.001)
-              , tolerance = c( 0.01, 0.001, 0.0001)
-  )
-  sink(file = paste("Results/", country, "/" ,"models_", country, "_svrParameters.txt", sep="")
+  #grid = list(lag = c(2, 5, 10, 15, 20)
+  #            , kernel = c("radial")
+  #            , gamma = c(1, 0.1, 0.01, 0.001)
+  #            , cost = c(0.1, 1, 100, 1000, 10000)
+  #            , epsilon = c(0.1, 0.01, 0.001)
+  #            , tolerance = c( 0.01, 0.001, 0.0001)
+  #)
+  sink(file = paste("Results/", country, "/" ,"gridSearch_", country, "_SVR_Parameters.txt", sep="")
        , append = FALSE, type = "output", split = FALSE); 
+  
   begin = proc.time()
+  
   MSE_min = 1e10; nModels = 0
   for(i in 1:length(grid$lag)){
     for (j in 1:length(grid$kernel)){
@@ -48,7 +50,6 @@ getSVRParameters_GridSearch = function(train, valid, grid){
                              , epsilon = svrParameters$epsilon
                              , tolerance = svrParameters$tolerance)
                              
-              
               predSVR = predict(modelSVR, validNorm_ts)
               MSE = getMSE(validNorm_ts$target, predSVR)
               
@@ -86,3 +87,73 @@ getSVRParameters_GridSearch = function(train, valid, grid){
   rtr$proc_time = end
   return(rtr)
 }  
+
+getELMParameters_GridSearch = function(train, valid, grid){
+  # train=normTrain; valid=normValid
+  # grid = list(lag = c(2, 5)#, 10, 15, 20)
+  #             , actfun = c("tansig")# , "sigmoid", "radbas", "relu")
+  #             , nhid = c(2, 5, 10, 15, 20)
+  # )
+  sink(file = paste("Results/", country, "/" ,"gridSearch_", country, "_ELM_Parameters.txt", sep="")
+       , append = FALSE, type = "output", split = FALSE); 
+  
+  begin = proc.time()
+  
+  MSE_min = 1e10; nModels = 0
+  for(i in 1:length(grid$lag)){
+    for (j in 1:length(grid$actfun)){
+      for (k in 1:length(grid$nhid)){
+              #i=1; j=1; k=1; l=1; m=1; n=1
+              
+        nModels = nModels + 1
+        elmParameters = list()
+        elmParameters$lag = grid$lag[i]
+        elmParameters$actfun = grid$actfun[j]
+        elmParameters$nhid = grid$nhid[k]
+
+        train_valid_df = getSlideWindowMatrix(c(train, valid), elmParameters$lag)
+        len = length(train_valid_df$target)
+        valid_len = length(valid)
+        trainNorm_ts = train_valid_df[1:(len-valid_len),]
+        validNorm_ts = train_valid_df[(len-valid_len+1):len,]
+        #length(valid); length(validNorm_ts$target)
+        #plot.ts(valid); lines(validNorm_ts$target, col=2)
+        #length(train); length(trainNorm_ts$target)
+        
+        modelELM = elm(target ~ .
+                       , data = trainNorm_ts
+                       , nhid = elmParameters$nhid
+                       , actfun = elmParameters$actfun)
+        
+        predELM = predict(modelELM, validNorm_ts)
+        MSE = getMSE(validNorm_ts$target, predELM)
+        
+        print(paste0("Iter.: ", nModels ," | lag: ", elmParameters$lag
+                      , " | actfun: ", elmParameters$actfun
+                      , " | nhid: ",  elmParameters$nhid
+                      , " | MSE: ", MSE));
+        if(is.na(MSE)){
+          print(paste0("NA value in ", nModels, " iteration."))
+        }else{
+          if(MSE < MSE_min){
+            print(paste0(round(MSE_min, 10), " --> ", round(MSE, 10), " - it: ", nModels))
+            MSE_min = MSE
+            bestPar = elmParameters
+          }
+        }
+      }
+    }
+  }
+  end = proc.time()[[3]] - begin[[3]]
+  print(paste0("Best parameters: ", list(bestPar)))
+  print(paste0("Processing time: ", end))
+  
+  sink()
+  
+  rtr = list()
+  rtr$bestPar = bestPar
+  rtr$MSE_min = MSE_min
+  rtr$proc_time = end
+  return(rtr)
+  
+}
