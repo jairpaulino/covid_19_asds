@@ -8,13 +8,15 @@ rm(list=ls()); graphics.off()
 
 # Libraries
 if(!require("e1071")) install.packages("e1071")
+if(!require("elmNNRcpp")) install.packages("elmNNRcpp")
+
 # Importing functions
 source("R/Auxiliar.R")
-source("R/ModelSVR.R")
+source("R/GridSearch.R")
 source("R/performanceMetrics.R")
 
-countries= c("US")
-models2Run = list(SVR = TRUE)
+countries= c("Brazil")#"Argentina", "Australia", "Brazil", "Canada", "China")
+models2Run = list(SVR = TRUE, ELM = TRUE)
 
 begin_all = proc.time()
 for(i in 1:length(countries)){
@@ -51,17 +53,26 @@ for(i in 1:length(countries)){
   abline(v=(length(normValid)+length(normTrain)), col=4, lwd=3)
   
   if(models2Run$SVR==TRUE){
-    
-    grid = list(lag = c(2, 5, 10, 15, 20)
-                , kernel = c("radial")
+    grid = list(lag = c(14)#2, 5, 10, 15, 20)
+                , kernel = c("radial", "linear")
                 , gamma = c(1, 0.1, 0.01, 0.001)
                 , cost = c(0.1, 1, 100, 1000, 10000)
                 , epsilon = c(0.1, 0.01, 0.001)
                 , tolerance = c( 0.01, 0.001, 0.0001)
                 )
-    
     SVR_parameters = getSVRParameters_GridSearch(normTrain, normValid, grid)
+    write.csv(SVR_parameters, file = paste0("Results/", country, "/", country, "_SVR_Parameters.csv"), row.names = F)
   }
+  
+  if(models2Run$ELM==TRUE){
+    grid = list(lag = c(14)#, 10, 15, 20)
+                , actfun = c("tansig", "relu")#, "sigmoid", "radbas")
+                , nhid = c(2, 5, 10, 15, 20)
+                )
+    ELM_parameters = getELMParameters_GridSearch(normTrain, normValid, grid)
+    write.csv(ELM_parameters, file = paste0("Results/", country, "/", country, "_ELM_Parameters.csv"), row.names = F)
+  }
+  
   
 }
 end_all = proc.time() - begin_all
