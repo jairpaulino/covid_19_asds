@@ -5,7 +5,7 @@ getNormalizeTS = function(array, min, max){#, lim_inf=0, lim_sup=1){
   
   #Then scale to [x,y]
   #range2 = lim_sup - lim_inf
-  #normalized = (norm1*range2) + lim_inf( conferir)
+  #normalized = (norm1*range2) + lim_inf (conferir)
   return(norm1)
 }
 

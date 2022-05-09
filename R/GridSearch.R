@@ -52,7 +52,7 @@ getSVRParameters_GridSearch = function(train, valid, grid){
                              , cost = svrParameters$cost
                              , epsilon = svrParameters$epsilon
                              , tolerance = svrParameters$tolerance)
-                             
+              
               predSVR = predict(modelSVR, validNorm_ts[,1:svrParameters$lag])
               MSE = getMSE(validNorm_ts$target, predSVR)
               #plot.ts(validNorm_ts$target); lines(predSVR, col=2)
@@ -84,7 +84,7 @@ getSVRParameters_GridSearch = function(train, valid, grid){
   print(paste0("Processing time: ", end))
   
   sink()
-  
+
   rtr = list()
   rtr$bestPar = bestPar
   rtr$MSE_min = MSE_min
@@ -107,14 +107,14 @@ getELMParameters_GridSearch = function(train, valid, grid){
   for(i in 1:length(grid$lag)){
     for (j in 1:length(grid$actfun)){
       for (k in 1:length(grid$nhid)){
-      #i=1; j=1; k=1; l=1; m=1; n=1
-              
+        #i=1; j=1; k=1; l=1; m=1; n=1
+        
         nModels = nModels + 1
         elmParameters = list()
         elmParameters$lag = grid$lag[i]
         elmParameters$actfun = grid$actfun[j]
         elmParameters$nhid = grid$nhid[k]
-
+        
         train_valid_df = getSlideWindowMatrix(c(train, valid), elmParameters$lag)
         train_valid_df[,1:elmParameters$lag] = apply(train_valid_df[,1:elmParameters$lag]
                                                      , MARGIN = 2, FUN = getNormalizeTS
@@ -128,7 +128,7 @@ getELMParameters_GridSearch = function(train, valid, grid){
         #length(valid); length(validNorm_ts$target)
         #plot.ts(valid); lines(validNorm_ts$target, col=2)
         #length(train); length(trainNorm_ts$target)
-
+        
         modelELM = elm(target ~ .
                        , data = trainNorm_ts
                        , nhid = elmParameters$nhid
@@ -139,9 +139,9 @@ getELMParameters_GridSearch = function(train, valid, grid){
         #plot.ts(validNorm_ts$target); lines(predELM, col=2)
         
         print(paste0("Iter.: ", nModels ," | lag: ", elmParameters$lag
-                      , " | actfun: ", elmParameters$actfun
-                      , " | nhid: ",  elmParameters$nhid
-                      , " | MSE: ", round(MSE, 2)));
+                     , " | actfun: ", elmParameters$actfun
+                     , " | nhid: ",  elmParameters$nhid
+                     , " | MSE: ", round(MSE, 2)));
         if(is.na(MSE)){
           print(paste0("NA value in ", nModels, " iteration."))
         }else{
@@ -158,7 +158,7 @@ getELMParameters_GridSearch = function(train, valid, grid){
   print(paste0("Best parameters: ", list(bestPar)))
   print(paste0("Processing time: ", end))
   sink()
-  
+
   rtr = list()
   rtr$bestPar = bestPar
   rtr$MSE_min = MSE_min
