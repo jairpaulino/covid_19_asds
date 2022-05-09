@@ -82,7 +82,6 @@ getSVRParameters_GridSearch = function(train, valid, grid){
   end = proc.time()[[3]] - begin[[3]]
   print(paste0("Best parameters: ", list(bestPar)))
   print(paste0("Processing time: ", end))
-  
   sink()
 
   rtr = list()
@@ -167,7 +166,7 @@ getELMParameters_GridSearch = function(train, valid, grid){
 }
 
 getLSTMParameters_GridSearch = function(train, valid, grid){
-  #train=train_ts; valid=valid_ts
+  # train=train_ts; valid=valid_ts
   # grid = list(lag = c(2, 10, 15, 20)
   #             , optim = c("Adam")
   #             , actfun = c("linear")
@@ -184,7 +183,7 @@ getLSTMParameters_GridSearch = function(train, valid, grid){
     for (j in 1:length(grid$optim)){
       for (k in 1:length(grid$actfun)){
         for (l in 1:length(grid$nhid)){
-          #i=1; j=1; k=1; l=1; m=1; n=1
+          #i=1; j=1; k=1; l=1
           
           nModels = nModels + 1
           lstmParameters = list()
@@ -194,10 +193,9 @@ getLSTMParameters_GridSearch = function(train, valid, grid){
           lstmParameters$nhid = grid$nhid[l]
           
           train_valid_df = getSlideWindowMatrix(c(train, valid), lstmParameters$lag)
-          train_valid_df[,1:lstmParameters$lag] = apply(train_valid_df[,1:lstmParameters$lag]
+          train_valid_df[,1:(lstmParameters$lag+1)] = apply(train_valid_df[,1:(lstmParameters$lag+1)]
                                                        , MARGIN = 2, FUN = getNormalizeTS
                                                        , max = max(train), min = min(train))
-          
           #View(train_valid_df)
           len = length(train_valid_df$target)
           valid_len = length(valid)
@@ -217,7 +215,7 @@ getLSTMParameters_GridSearch = function(train, valid, grid){
           modelLSTM = keras_model_sequential()
           modelLSTM %>%
             layer_lstm(units = lstmParameters$nhid
-                       , input_shape = dim(covariates_train)[-1] 
+                       , input_shape = dim(covariates_train)[-1]
                        , return_sequences = FALSE) %>%
             layer_dense(units = 1, lstmParameters$actfun)
           
@@ -241,29 +239,31 @@ getLSTMParameters_GridSearch = function(train, valid, grid){
           # 
           
           history = modelLSTM %>% 
-            fit(x = covariates_train, y = target_train
+            fit(x = covariates_train
+                , y = target_train
                 , callbacks = c(early_stopping)
                 , epochs = 20
-                , shuffle = FALSE
+                #, shuffle = FALSE
                 , batch_size = 1
-                , validation_split = 0
-                , validation_data = list(covariates_valid, target_valid)
+                , validation_split = 0.2
+                #, validation_data = list(covariates_valid, target_valid)
                 , verbose = TRUE)
           
           predLSTM = predict(modelLSTM, covariates_valid)
           MSE = getMSE(target_valid, predLSTM)
           #plot.ts(target_valid); lines(predLSTM, col=2)
+          #plot.ts(predLSTM)
           
           print(paste0("Iter.: ", nModels ," | lag: ", lstmParameters$lag
                        , " | optim: ", lstmParameters$optim
                        , " | actfun: ",  lstmParameters$actfun
                        , " | nhid: ",  lstmParameters$nhid
-                       , " | MSE: ", round(MSE, 2)));
+                       , " | MSE: ", round(MSE, 5)));
           if(is.na(MSE)){
             print(paste0("NA value in ", nModels, " iteration."))
           }else{
             if(MSE < MSE_min){
-              print(paste0(round(MSE_min, 2), " --> ", round(MSE, 2), " - it: ", nModels))
+              print(paste0(round(MSE_min, 5), " --> ", round(MSE, 5), " - it: ", nModels))
               MSE_min = MSE
               bestPar = lstmParameters
             }

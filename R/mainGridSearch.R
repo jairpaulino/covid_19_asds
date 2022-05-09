@@ -1,4 +1,4 @@
-#Title: SVR GridSearch to COVID-19 forecasting
+#Title: SVR, ELM and LSTM GridSearch to COVID-19 forecasting
 #Date: Mai/2022
 
 # Setup ----
@@ -18,7 +18,7 @@ source("R/GridSearch.R")
 source("R/performanceMetrics.R")
 
 countries= c("Argentina", "Australia", "Canada", "China")
-models2Run = list(SVR = TRUE, ELM = TRUE, LSTM=TRUE)
+models2Run = list(SVR = F, ELM = F, LSTM=TRUE)
 
 begin_all = proc.time()
 for(i in 1:length(countries)){
@@ -78,7 +78,7 @@ for(i in 1:length(countries)){
   if(models2Run$LSTM == TRUE){
     grid = list(lag = c(14)#2, 10, 15, 20)
                 , optim = c("Adam")
-                , actfun = c("linear", "relu")
+                , actfun = c("linear")#, "relu")
                 , nhid = c(10, 30, 60, 100, 200)#2, 5, 10, 15, 20)
     )
     LSTM_parameters = getLSTMParameters_GridSearch(train_ts, valid_ts, grid)
