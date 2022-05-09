@@ -167,4 +167,119 @@ getELMParameters_GridSearch = function(train, valid, grid){
 }
 
 getLSTMParameters_GridSearch = function(train, valid, grid){
+  #train=train_ts; valid=valid_ts
+  # grid = list(lag = c(2, 10, 15, 20)
+  #             , optim = c("Adam")
+  #             , actfun = c("linear")
+  #             , nhid = c(2, 5, 10, 15, 20)
+  # )
+  
+  sink(file = paste("Results/", country, "/" ,"gridSearch_", country, "_LSTM_Parameters.txt", sep="")
+       , append = FALSE, type = "output", split = FALSE); 
+  
+  begin = proc.time()
+  
+  MSE_min = 1e10; nModels = 0
+  for(i in 1:length(grid$lag)){
+    for (j in 1:length(grid$optim)){
+      for (k in 1:length(grid$actfun)){
+        for (l in 1:length(grid$nhid)){
+          #i=1; j=1; k=1; l=1; m=1; n=1
+          
+          nModels = nModels + 1
+          lstmParameters = list()
+          lstmParameters$lag = grid$lag[i]
+          lstmParameters$optim = grid$optim[j]
+          lstmParameters$actfun = grid$actfun[k]
+          lstmParameters$nhid = grid$nhid[l]
+          
+          train_valid_df = getSlideWindowMatrix(c(train, valid), lstmParameters$lag)
+          train_valid_df[,1:lstmParameters$lag] = apply(train_valid_df[,1:lstmParameters$lag]
+                                                       , MARGIN = 2, FUN = getNormalizeTS
+                                                       , max = max(train), min = min(train))
+          
+          #View(train_valid_df)
+          len = length(train_valid_df$target)
+          valid_len = length(valid)
+          trainNorm_ts = train_valid_df[1:(len-valid_len),]
+          validNorm_ts = train_valid_df[(len-valid_len+1):len,]
+          #length(valid); length(validNorm_ts$target)
+          #plot.ts(valid); lines(validNorm_ts$target, col=2)
+          #length(train); length(trainNorm_ts$target)
+          
+          covariates_train = as.matrix(trainNorm_ts[,1:lstmParameters$lag])
+          dim(covariates_train) = c(dim(covariates_train), 1)
+          target_train = as.matrix(trainNorm_ts$target)
+          covariates_valid = as.matrix(validNorm_ts[,1:lstmParameters$lag])
+          dim(covariates_valid) = c(dim(covariates_valid), 1)
+          target_valid = as.matrix(validNorm_ts$target)
+          
+          modelLSTM = keras_model_sequential()
+          modelLSTM %>%
+            layer_lstm(units = lstmParameters$nhid
+                       , input_shape = dim(covariates_train)[-1] 
+                       , return_sequences = FALSE) %>%
+            layer_dense(units = 1, lstmParameters$actfun)
+          
+          modelLSTM %>% 
+            compile(loss = 'mse'
+                    , optimizer = lstmParameters$optim
+                    , metrics = 'mse')
+          
+          early_stopping = callback_early_stopping(monitor = 'val_loss', patience = 5)
+          
+          # early_stopping = callback_reduce_lr_on_plateau(
+          #   monitor = "val_loss",
+          #   factor = 0.1,
+          #   patience = 5,
+          #   verbose = 0,
+          #   mode = c("auto", "min", "max"),
+          #   min_delta = 1e-04,
+          #   cooldown = 0,
+          #   min_lr = 0
+          # )
+          # 
+          
+          history = modelLSTM %>% 
+            fit(x = covariates_train, y = target_train
+                , callbacks = c(early_stopping)
+                , epochs = 20
+                , shuffle = FALSE
+                , batch_size = 1
+                , validation_split = 0
+                , validation_data = list(covariates_valid, target_valid)
+                , verbose = TRUE)
+          
+          predLSTM = predict(modelLSTM, covariates_valid)
+          MSE = getMSE(target_valid, predLSTM)
+          #plot.ts(target_valid); lines(predLSTM, col=2)
+          
+          print(paste0("Iter.: ", nModels ," | lag: ", lstmParameters$lag
+                       , " | optim: ", lstmParameters$optim
+                       , " | actfun: ",  lstmParameters$actfun
+                       , " | nhid: ",  lstmParameters$nhid
+                       , " | MSE: ", round(MSE, 2)));
+          if(is.na(MSE)){
+            print(paste0("NA value in ", nModels, " iteration."))
+          }else{
+            if(MSE < MSE_min){
+              print(paste0(round(MSE_min, 2), " --> ", round(MSE, 2), " - it: ", nModels))
+              MSE_min = MSE
+              bestPar = lstmParameters
+            }
+          }
+        }
+      }
+    }
+  }
+  end = proc.time()[[3]] - begin[[3]]
+  print(paste0("Best parameters: ", list(bestPar)))
+  print(paste0("Processing time: ", end))
+  sink()
+  
+  rtr = list()
+  rtr$bestPar = bestPar
+  rtr$MSE_min = MSE_min
+  rtr$proc_time = end
+  return(rtr)
 }
