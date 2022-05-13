@@ -11,14 +11,17 @@ if(!require("e1071")) install.packages("e1071")
 if(!require("elmNNRcpp")) install.packages("elmNNRcpp")
 if(!require("keras")) install.packages("keras")
 if(!require("tensorflow")) install.packages("tensorflow")
+if(!require("outliers")) install.packages("outliers")
 
 # Importing functions
 source("R/Auxiliar.R")
 source("R/GridSearch.R")
 source("R/performanceMetrics.R")
+source("R/CreateModels.R")
 
 countries= c("Argentina", "Australia", "Canada", "China")
-models2Run = list(SVR = F, ELM = F, LSTM=TRUE)
+models2Run = list(SVR = TRUE, ELM = FALSE, LSTM = FALSE)
+toGrid = list(SVR = FALSE, ELM = FALSE, LSTM = FALSE)
 
 begin_all = proc.time()
 for(i in 1:length(countries)){
@@ -28,45 +31,55 @@ for(i in 1:length(countries)){
   if(!dir.exists(file.path(getwd(), paste0("Results/", country)))){
     dir.create(file.path(getwd(), paste0("Results/", country)))
   }
-  
   incDia = read.csv(paste0("Data/", country, "_daily.csv", sep=""), sep=",")
-  #plot.ts(incDia[country])
+  #plot.ts(incDia[[2]])
   cut_pos = which(grepl("12/31/21", incDia$X))
   incDia_ts = delete_zero(incDia[1:cut_pos,])
-  plot.ts(incDia_ts[country])
+  #incDia_ts = treatingOutliers(incDia_ts[[2]])
+  plot.ts(incDia_ts[[2]])
+  #acf(incDia_ts[[2]]); pacf(incDia_ts[[2]])
   
   # Split data into train_valid - test
-  len = length(incDia_ts[[country]])
+  len = length(incDia_ts[[2]])
   train_perc = round(len*0.7, 0) 
   valid_perc = train_perc + round(len*0.2, 0)  
   test_perc = valid_perc + round(len*0.1, 0)  
-  train_ts =  incDia_ts[[country]][1:train_perc]
-  valid_ts =  incDia_ts[[country]][(train_perc+1):valid_perc]
-  test_ts =  incDia_ts[[country]][(valid_perc+1):len]
+  train_ts =  incDia_ts[[2]][1:train_perc]
+  valid_ts =  incDia_ts[[2]][(train_perc+1):valid_perc]
+  test_ts =  incDia_ts[[2]][(valid_perc+1):len]
   #len==length(train_ts)+length(valid_ts)+length(test_ts)
   
   # MinMax Normalisation
-  #min_train = min(train_ts); max_train = max(train_ts)
-  #normTrain = getNormalizeTS(train_ts, min=min_train, max=max_train)
-  #normValid= getNormalizeTS(valid_ts, min=min_train, max=max_train)
-  #normTest = getNormalizeTS(test_ts, min=min_train, max=max_train)
-  #plot.ts(c(normTrain, normValid, normTest))
+  min_train = min(train_ts); max_train = max(train_ts)
+  normTrain = getNormalizeTS(train_ts, min=min_train, max=max_train)
+  normValid= getNormalizeTS(valid_ts, min=min_train, max=max_train)
+  normTest = getNormalizeTS(test_ts, min=min_train, max=max_train)
+  plot.ts(c(normTrain, normValid, normTest))
   #abline(v=length(normTrain), col=2, lwd=2)
   #abline(v=(length(normValid)+length(normTrain)), col=4, lwd=3)
   
   if(models2Run$SVR == TRUE){
-    grid = list(lag = c(14)#2, 5, 10, 15, 20)
-                , kernel = c("radial", "linear")
-                , gamma = c(1, 0.1, 0.01, 0.001)
-                , cost = c(0.1, 1, 100, 1000, 10000)
-                , epsilon = c(0.1, 0.01, 0.001)
-                , tolerance = c(0.01, 0.001, 0.0001)
-                )
-    SVR_parameters = getSVRParameters_GridSearch(train_ts, valid_ts, grid)
-    write.csv(SVR_parameters, file = paste0("Results/", country, "/", country, "_SVR_Parameters.csv"), row.names = F)
+    if(toGrid$SVR == TRUE){
+      grid = list(lag = c(14)#2, 5, 10, 15, 20)
+                  , kernel = c("radial")#, "linear")
+                  , gamma = c(1)#, 0.1, 0.01, 0.001)
+                  , cost = c(0.1)#, 1, 100, 1000, 10000)
+                  , epsilon = c(0.1)#, 0.01, 0.001)
+                  , tolerance = c(0.01)#, 0.001, 0.0001)
+      )
+      SVR_parameters = getSVRParameters_GridSearch(train_ts, valid_ts, grid)
+      write.csv(SVR_parameters, file = paste0("Results/", country, "/", country
+                                              , "_SVR_Parameters.csv"), row.names = F)
+    }else{
+      SVR_parameters = read.csv(paste0("Results/", country, "/", country
+                                       , "_SVR_Parameters.csv"))
+      results_SVR = SVR_predict(train = c(normTrain, normValid), test = normTest
+                                , parameters = SVR_parameters)
+    }
   }
   
   if(models2Run$ELM == TRUE){
+    
     grid = list(lag = c(14)#2, 10, 15, 20)
                 , actfun = c("relu", "tansig", "sig")#, "sigmoid", "radbas")
                 , nhid = c(2, 5, 10, 15, 20)
@@ -85,5 +98,17 @@ for(i in 1:length(countries)){
     write.csv(LSTM_parameters, file = paste0("Results/", country, "/", country, "_LSTM_Parameters.csv"), row.names = F)
   }
   
+  results_df = data.frame(matrix(ncol=1, nrow = length(normTest)))
+  colnames(results_df) = c("Target")
+  results_df$Target = normTest
+  if(models2Run$SVR){
+    results_df$SVR = results_SVR$predict
+  }
+  
+  generateGraphics(results_df)    
+  calculateMetrics(results_df)
+  
 }
 end_all = proc.time() - begin_all
+
+# GERAR MÉTRICAS DE TESTE PARA 10 ST - 

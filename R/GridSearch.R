@@ -32,9 +32,9 @@ getSVRParameters_GridSearch = function(train, valid, grid){
               svrParameters$tolerance = grid$tolerance[n]
               
               train_valid_df = getSlideWindowMatrix(c(train, valid), svrParameters$lag)
-              train_valid_df[,1:svrParameters$lag] = apply(train_valid_df[,1:svrParameters$lag]
-                                                           , MARGIN = 2, FUN = getNormalizeTS
-                                                           , max = max(train), min = min(train))
+              #train_valid_df[,1:svrParameters$lag] = apply(train_valid_df[,1:svrParameters$lag]
+              #                                             , MARGIN = 2, FUN = getNormalizeTS
+              #                                             , max = max(train), min = min(train))
               len = length(train_valid_df$target)
               valid_len = length(valid)
               trainNorm_ts = train_valid_df[1:(len-valid_len),]

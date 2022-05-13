@@ -1,35 +1,17 @@
-calculateMetrics = function(resultsMatrix){ #resultsMatrix = results
-  metricsMatrix = data.frame(matrix(nrow = (length(resultsMatrix)-1), ncol = 5))
-  rownames(metricsMatrix) = names(resultsMatrix)[2:(length(resultsMatrix))]
-  colnames(metricsMatrix) = c('MSE', 'MAE', 'MAPE', 'ARV', 'THEIL')
-  #resultsMatrixWONA = na.omit(resultsMatrix)
-  
-  for (i in 1:3) { #i=4
-    for (j in 1:5) {
-      if(j == 1){
-        metricsMatrix[i,j] = getMSE(resultsMatrix[[i+1]], resultsMatrix$OBS)
-      }
-      if(j == 2){
-        metricsMatrix[i,j] = getMAE(resultsMatrix[[i+1]], resultsMatrix$OBS)
-      }
-      if(j == 3){
-        metricsMatrix[i,j] = getMAPE(resultsMatrix[[i+1]], resultsMatrix$OBS)
-      }    
-      if(j == 4){
-        metricsMatrix[i,j] = getARV(resultsMatrix[[i+1]], resultsMatrix$OBS)
-      }
-      if(j == 5){
-        metricsMatrix[i,j] = getTheil(resultsMatrix[[i+1]], resultsMatrix$OBS)
-      }
-    }
+calculateMetrics = function(results_df){ 
+  #results_df = results_df
+  metrics_df = data.frame(matrix(nrow = (length(results_df)-1), ncol = 4))
+  rownames(metrics_df) = names(results_df)[2:(length(results_df))]
+  colnames(metrics_df) = c('RMSE', 'MAE', 'MAPE', 'R2')
+
+  for (i in 2:length(results_df)){ #i=4
+    metrics_df[i-1, c("RMSE")] = getRMSE(results_df[[i]], results_df$Target)
+    metrics_df[i-1, c("MAE")] = getMAE(results_df[[i]], results_df$Target)
+    metrics_df[i-1, c("MAPE")] = getMAPE(results_df[[i]], results_df$Target)
+    metrics_df[i-1, c("R2")] = getRegressionMetrics(results_df[[i]], results_df$Target)$R2
   }
 
-# getMSE(onestep_ftsga, data_test) #FUZZY
-# getMSE(onestep_arima, data_test) #ARIMA
-# getMSE(onestep_ets, data_test) #ETS
-# getMSE(onestep_nnar, data_test) #NNETAR
-  
-  return(metricsMatrix)  
+  return(metrics_df)  
 }
 
 getMAE = function(target,forecast){ # target = a; forecast = b

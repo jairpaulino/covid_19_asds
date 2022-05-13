@@ -1,3 +1,23 @@
+generateGraphics = function(results_df){
+  #results_df = results_df
+  plot.ts(results_df$Target, lwd=2)
+  for(i in 2:length(results_df)){
+    lines(results_df[[2]], col=i, lwd=2)
+  }
+  legend("topleft", c(names(results_df)), lwd=2, col=c(1:length(results_df))
+         , inset = 0.01)
+}
+
+treatingOutliers = function(time_series){
+  time_series = incDia[[2]]# incDia_ts[[2]]
+  out = boxplot.stats(time_series, coef = 1.5)$out
+  out_ind = which(time_series %in% c(out))
+  for(i in 1:length(out_ind)){
+    time_series[out_ind[i]] = time_series[out_ind[i]-1]
+  }#plot.ts(time_series)
+  return(time_series)
+}
+
 getNormalizeTS = function(array, min, max){#, lim_inf=0, lim_sup=1){
   #Normalize to [0, 1]
   range = max - min
