@@ -1,16 +1,17 @@
 calculateMetrics = function(results_df){ 
   #results_df = results_df
-  metrics_df = data.frame(matrix(nrow = (length(results_df)-1), ncol = 4))
+  metrics_df = data.frame(matrix(nrow = (length(results_df)-1), ncol = 5))
   rownames(metrics_df) = names(results_df)[2:(length(results_df))]
-  colnames(metrics_df) = c('RMSE', 'MAE', 'MAPE', 'R2')
+  colnames(metrics_df) = c('RMSE', 'MAE', 'MAPE', 'R2', 'WPOCID')
 
-  for (i in 2:length(results_df)){ #i=4
-    metrics_df[i-1, c("RMSE")] = getRMSE(results_df[[i]], results_df$Target)
-    metrics_df[i-1, c("MAE")] = getMAE(results_df[[i]], results_df$Target)
-    metrics_df[i-1, c("MAPE")] = getMAPE(results_df[[i]], results_df$Target)
-    metrics_df[i-1, c("R2")] = getRegressionMetrics(results_df[[i]], results_df$Target)$R2
+  for (i in 2:length(results_df)){ #i=5
+    metrics_df[i-1, c("RMSE")] = getRMSE(results_df$Target, results_df[[i]])
+    metrics_df[i-1, c("MAE")] = getMAE(results_df$Target, results_df[[i]])
+    metrics_df[i-1, c("MAPE")] = getMAPE(results_df$Target, results_df[[i]])
+    metrics_df[i-1, c("R2")] = getRegressionMetrics(results_df$Target, results_df[[i]])$R2
+    metrics_df[i-1, c("WPOCID")] = getWPOCID(results_df$Target, results_df[[i]])
   }
-
+  #plot.ts(results_df$Target); lines(results_df[[i]], col=2)
   return(metrics_df)  
 }
 
@@ -25,7 +26,7 @@ getSE = function(target,forecast){
   return(SE)
 }
 
-getAPE = function(target,forecast){
+getAPE = function(target, forecast){
   target[which(target==0)] = NA#1e-10*min(abs(target[target!=0]))
   APE=abs((target-forecast)/target)
   return(APE)  
